@@ -19,19 +19,19 @@ class DangerMap:
     self.xDim = xDim
     self.yDim = yDim
     for x in range(1, self.xDim - 1):
-      for y in range(1, self.xDim - 1):
+      for y in range(1, self.yDim - 1):
         if self.initialDangerMap[x][y] == False:
           self.initialDangerMap[x][y] = 500
-          self.initialDangerMap[2*self.xDim - 1 -x][self.xDim - 1 -y] = 500
+          self.initialDangerMap[2*self.xDim - 1 -x][self.yDim - 1 -y] = 500
     # Initializing the middle with 0s
-    for y in range(1, self.xDim - 1):
+    for y in range(1, self.yDim - 1):
       if self.initialDangerMap[self.xDim - 1][y] == False:
           self.initialDangerMap[self.xDim - 1][y] = 0
-          self.initialDangerMap[self.xDim][self.xDim - 1 -y] = 0
+          self.initialDangerMap[self.xDim][self.yDim - 1 -y] = 0
     # Construct iteratively the map
     for _ in range(1):
       for x in range(self.xDim - 2,0,-1):
-        for y in range(1, self.xDim - 1):
+        for y in range(1, self.yDim - 1):
           if type(self.dangerMap[x][y]) == int:
             close_positions = self.returnCorrectNeighbours(x,y)
             limit_positions = self.returnLimitsCoordinates(x,y)
@@ -68,9 +68,10 @@ class DangerMap:
     res = []
     for x in range(-5, 6):
       for y in range(abs(x) - 5, 6 - abs(x)):
-        if 0 < x_pos + x and x_pos + x < 2*self.xDim - 1:
-          if 0 < y_pos + y and y_pos + y < self.xDim - 1:
-            if type(self.dangerMap[x_pos + x][y_pos + y]) == int:
+        if 0 < x_pos + x and x_pos + x < 2*self.xDim - 1 and 0 < x_pos and x_pos < 2*self.xDim - 1:
+          if 0 < y_pos + y and y_pos + y < self.yDim - 1 and 0 < y_pos and y_pos < self.yDim - 1:
+            if self.initialDangerMap[x_pos + x][y_pos + y] == False and self.initialDangerMap[x_pos][y_pos] == False:
+              print(self.dangerMap)
               if self.getMazeDistance((x_pos,y_pos),(x_pos + x,y_pos + y)) <= 5:
                 res.append((x_pos + x,y_pos + y))
     return res
@@ -85,7 +86,7 @@ class DangerMap:
       if 0 < x_pos + x:
         if y_plus < self.xDim - 1 and 0 < y_plus and type(self.dangerMap[x_pos + x][y_plus]) == int:
           res.append((x_pos + x,y_plus))
-        if 0 < y_minus and y_minus < self.xDim - 1 and type(self.dangerMap[x_pos + x][y_minus]) == int:
+        if 0 < y_minus and y_minus < self.yDim - 1 and type(self.dangerMap[x_pos + x][y_minus]) == int:
           res.append((x_pos + x, y_minus))
     if type(self.dangerMap[x_pos + 5][y_pos]) == int:
       res.append((x_pos + 5, y_pos))

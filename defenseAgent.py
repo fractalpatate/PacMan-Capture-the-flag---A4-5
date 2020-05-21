@@ -17,6 +17,9 @@ class DefenseAgent(CaptureAgent):
   A base class for reflex agents that chooses score-maximizing actions
   """
 
+  previousFoodToDefend = [[0]]
+  rememberedPosition = (0,0)
+
   def __init__(self, index, timeForComputing=.1):
     # Agent index for querying state
     self.index = index
@@ -37,23 +40,79 @@ class DefenseAgent(CaptureAgent):
     # Dimensions of the map
     self.xDim = 16
     self.yDim = 16
+    self.chaseCounter = 0
 
   def registerInitialState(self, gameState):
     self.start = gameState.getAgentPosition(self.index)
     CaptureAgent.registerInitialState(self, gameState)
-    self.dangerMap = DangerMap(
-        gameState.data.layout.walls, self.getMazeDistance, self.xDim, self.yDim)
+    self.xDim = int(gameState.data.layout.walls.width/2)
+    self.yDim = int(gameState.data.layout.walls.height)
+    self.dangerMap = DangerMap(gameState.data.layout.walls, self.getMazeDistance, self.xDim, self.yDim)
     self.opponentsIndexes = self.getOpponents(gameState)
     self.teamIndexes = self.getTeam(gameState)
+    DefenseAgent.previousFoodToDefend = self.getFoodYouAreDefending(gameState)
 
   def chooseAction(self, gameState):
     """
-    Picks among the actions with the highest Q(s,a).
+    Choose best action among :
+     1 - Go to a detected enemy
+     2 - Go where food is eaten
+     3 - Go where the enemy is more likely to be (to be upgraded)
     """
 
     myPos = gameState.getAgentPosition(self.index)
     actions = gameState.getLegalActions(self.index)
     actions.remove('Stop')
+
+    # Detect if food is being eaten and set the counter for the time of the chase
+
+    currentFoodToDefend = self.getFoodYouAreDefending(gameState)
+    diff = []
+    for x in range(self.xDim):
+      for y in range(self.yDim):
+        if currentFoodToDefend[x][y] != DefenseAgent.previousFoodToDefend[x][y]:
+          diff.append((x,y))
+    DefenseAgent.previousFoodToDefend = currentFoodToDefend
+    if diff != []:
+      ennemy_pos = None
+      if len(diff) == 1:
+          ennemy_pos = diff[0]
+          if ennemy_pos != None:
+            current_dist = self.getMazeDistance(myPos, ennemy_pos)
+            for action in actions:
+              new_state = self.getSuccessor(gameState, action)
+              new_dist = self.getMazeDistance(new_state.getAgentPosition(self.index), ennemy_pos)
+              if new_dist < current_dist:
+                if (self.red and new_state.getAgentPosition(self.index)[0] < self.xDim - 1) or (not self.red and new_state.getAgentPosition(self.index)[0] > self.xDim):
+                  DefenseAgent.rememberedPosition = ennemy_pos
+                  self.chaseCounter = 7
+                  return action
+      # If two enemies are eating food, choose the enemy that is the closest the the center of the terrain
+      if self.red:
+        if len(diff) == 2:
+          if diff[0][0] >= diff[1][0]:
+            ennemy_pos = diff[0]
+          else:
+            ennemy_pos = diff[1]
+      else:
+        if len(diff) == 2:
+          if diff[0][0] <= diff[1][0]:
+            ennemy_pos = diff[0]
+          else:
+            ennemy_pos = diff[1]
+      if ennemy_pos != None:
+          current_dist = self.getMazeDistance(myPos, ennemy_pos)
+          for action in actions:
+              new_state = self.getSuccessor(gameState, action)
+              new_dist = self.getMazeDistance(
+                  new_state.getAgentPosition(self.index), ennemy_pos)
+              if new_dist < current_dist:
+                if (self.red and new_state.getAgentPosition(self.index)[0] < self.xDim - 1) or (not self.red and new_state.getAgentPosition(self.index)[0] > self.xDim):
+                  DefenseAgent.rememberedPosition = ennemy_pos
+                  self.chaseCounter = 7
+                  return action
+
+    # Detect if an enemy is in sonar range and rush to it
 
     for agentIndex in self.opponentsIndexes:
       ennemy_pos = gameState.getAgentPosition(agentIndex)
@@ -66,11 +125,27 @@ class DefenseAgent(CaptureAgent):
             if (self.red and new_state.getAgentPosition(self.index)[0] < self.xDim - 1) or (not self.red and new_state.getAgentPosition(self.index)[0] > self.xDim):
               return action
     
+    # If the chase is in progress, go to the reminded position
+
+    if self.chaseCounter > 0:
+      self.chaseCounter -= 1
+      ennemy_pos = DefenseAgent.rememberedPosition
+      current_dist = self.getMazeDistance(myPos, ennemy_pos)
+      for action in actions:
+        new_state = self.getSuccessor(gameState, action)
+        new_dist = self.getMazeDistance(
+            new_state.getAgentPosition(self.index), ennemy_pos)
+        if new_dist < current_dist:
+          if (self.red and new_state.getAgentPosition(self.index)[0] < self.xDim - 1) or (not self.red and new_state.getAgentPosition(self.index)[0] > self.xDim):
+            return action
+
+    # Use statistics to know the position where an enemy is more likely to be
+
     positions = self.bestPositions(gameState)
     
     if positions != [] and positions!= None:
       chosen_position = random.choice(positions)
-      current_dist = self.getMazeDistance(myPos, chosen_position)
+      current_dist = self.getMazeDistance(myPos, (int(chosen_position[0]),int(chosen_position[1])))
       for action in actions:
           new_state = self.getSuccessor(gameState, action)
           new_dist = self.getMazeDistance(new_state.getAgentPosition(self.index), chosen_position)
@@ -212,17 +287,17 @@ class DefenseAgent(CaptureAgent):
   
   def circleManhattanCoords(self, x_pos, y_pos, r):
     res = []
-    dangerMapMatrix = self.dangerMap.getDangerMap()
+    dangerMapMatrix = self.dangerMap.initialDangerMap
     if x_pos >= r and type(dangerMapMatrix[int(x_pos - r)][int(y_pos)]) == int:
       res.append((x_pos - r, y_pos))
     for x in range(-r + 1, r):
       y_plus = y_pos + r - abs(x_pos)
       y_minus = y_pos + abs(x_pos) - r
-      if 0 < x_pos + x and x_pos + x < 32:
-        if y_plus < self.xDim - 1 and 0 < y_plus and type(dangerMapMatrix[int(x_pos + x)][int(y_plus)]) == int:
+      if 0 < x_pos + x and x_pos + x < 2*self.xDim:
+        if y_plus < self.xDim - 1 and 0 < y_plus and dangerMapMatrix[int(x_pos + x)][int(y_plus)] == False:
           res.append((x_pos + x, y_plus))
-        if 0 < y_minus and y_minus < self.xDim - 1 and type(dangerMapMatrix[int(x_pos + x)][int(y_minus)]) == int:
+        if 0 < y_minus and y_minus < self.xDim - 1 and dangerMapMatrix[int(x_pos + x)][int(y_minus)] == False:
           res.append((x_pos + x, y_minus))
-    if x_pos + r > 0 and x_pos + r < 2*self.xDim - 1 and type(dangerMapMatrix[int(x_pos + r)][int(y_pos)]) == int:
+    if x_pos + r > 0 and x_pos + r < 2*self.xDim - 1 and dangerMapMatrix[int(x_pos + r)][int(y_pos)] == False:
       res.append((x_pos + r, y_pos))
     return res

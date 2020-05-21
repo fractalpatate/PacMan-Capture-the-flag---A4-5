@@ -15,7 +15,7 @@ class AttackSafeAgent(CaptureAgent):
   """
   An attack class that takes into account the danger map to always survive when against only one defender
   """
-
+  previous_pos = (0,0)
   distances = [10,10,10,10]
   index = 0
 
@@ -42,41 +42,60 @@ class AttackSafeAgent(CaptureAgent):
   def registerInitialState(self, gameState):
     self.start = gameState.getAgentPosition(self.index)
     CaptureAgent.registerInitialState(self, gameState)
-    self.dangerMap = DangerMap(
-        gameState.data.layout.walls, self.getMazeDistance, self.xDim, self.yDim)
+    self.xDim = int(gameState.data.layout.walls.width/2)
+    self.yDim = int(gameState.data.layout.walls.height)
+    self.dangerMap = DangerMap(gameState.data.layout.walls, self.getMazeDistance, self.xDim, self.yDim)
     self.opponentsIndexes = self.getOpponents(gameState)
-    #print(self.dangerMap.getDangerMap())
+    self.initialFoodLeft = len(self.getFood(gameState).asList())
+    self.k = 0
 
   def chooseAction(self, gameState):
     """
     Picks among the actions with the highest Q(s,a) if no ennemy is in radar range.
     Otherwise, use minimax to decide which action to make.
     """
+
+
     # Minimax depth must be odd
-    minimax_depth = 9
+    minimax_depth = 5
     if True:#(self.red and myPos[0] >= self.xDim) or ((not self.red ) and myPos[0]<self.xDim):
-      for ennemy_index in self.opponentsIndexes:
+      if True:
+        # Find the closest enemy
+        closeEnemyPositions = []
+        closeEnemyIndex = []
+        closeEnemyDistances = []
+        myPos = gameState.getAgentPosition(self.index)
+        for ennemy_index in self.opponentsIndexes:
           ennemy_pos = gameState.getAgentPosition(ennemy_index)
+          if ennemy_pos != None:
+            closeEnemyPositions.append(ennemy_index)
+            closeEnemyDistances.append(self.getMazeDistance(ennemy_pos, myPos))
+            closeEnemyIndex.append(ennemy_index)
+        if closeEnemyIndex != []:
+          ennemy_pos = closeEnemyPositions[closeEnemyDistances.index(
+              min(closeEnemyDistances))]
+          ennemy_index = closeEnemyIndex[closeEnemyDistances.index(
+              min(closeEnemyDistances))]
           if ennemy_pos != None:
             minimax = MiniMax(gameState, None, minimax_depth)
             for layer in range(int((minimax_depth - 1)/2)):
               number_of_successors = 0
-              for k in range(len(minimax.tree[layer])):
-                node = minimax.tree[layer][k]
+              for k in range(len(minimax.tree[2*layer])):
+                node = minimax.tree[2*layer][k]
                 actions = node.gameState.getLegalActions(self.index)
                 for action in actions:
-                  successor = node.gameState.generateSuccessor(self.index, action)
-                  minimax.tree[layer + 1].append(Node(successor, 0, k, action, node.depth - 1))
-                  minimax.tree[layer][k].child.append(number_of_successors)
+                  successor = self.getSuccessor(node.gameState, action)
+                  minimax.tree[2*layer + 1].append(Node(successor, 0, k, action, node.depth - 1))
+                  minimax.tree[2*layer][k].child.append(number_of_successors)
                   number_of_successors += 1
               number_of_successors = 0
-              for k in range(len(minimax.tree[layer + 1])):
-                node = minimax.tree[layer + 1][k]
+              for k in range(len(minimax.tree[2*layer + 1])):
+                node = minimax.tree[2*layer + 1][k]
                 actions = node.gameState.getLegalActions(ennemy_index)
                 for action in actions:
-                  successor = node.gameState.generateSuccessor(ennemy_index, action)
-                  minimax.tree[layer + 2].append(Node(successor, 0, k, action, node.depth - 1))
-                  minimax.tree[layer + 1][k].child.append(number_of_successors)
+                  successor = self.getSuccessorEnemy(node.gameState, action, ennemy_index)
+                  minimax.tree[2*layer + 2].append(Node(successor, 0, k, action, node.depth - 1))
+                  minimax.tree[2*layer + 1][k].child.append(number_of_successors)
                   number_of_successors += 1
             for terminalNode in minimax.tree[len(minimax.tree) - 1]:
               actions = terminalNode.gameState.getLegalActions(self.index)
@@ -85,19 +104,61 @@ class AttackSafeAgent(CaptureAgent):
                 values.append(self.evaluate(terminalNode.gameState, action))
               terminalNode.value = max(values)
             return minimax.ChooseBestAction()
+        # else:
+        #   minimax = MiniMax(gameState, None, minimax_depth)
+        #   for layer in range(minimax_depth - 1):
+        #     number_of_successors = 0
+        #     for k in range(len(minimax.tree[layer])):
+        #       node = minimax.tree[layer][k]
+        #       actions = node.gameState.getLegalActions(self.index)
+        #       for action in actions:
+        #           successor = node.gameState.generateSuccessor(self.index, action)
+        #           minimax.tree[layer + 1].append(Node(successor, 0, k, action, node.depth - 1))
+        #           minimax.tree[layer][k].child.append(number_of_successors)
+        #           number_of_successors += 1
+        #   for terminalNode in minimax.tree[len(minimax.tree) - 1]:
+        #       actions = terminalNode.gameState.getLegalActions(self.index)
+        #       values = []
+        #       for action in actions:
+        #         values.append(self.evaluate(terminalNode.gameState, action))
+        #       terminalNode.value = max(values)
+        #   return minimax.ChooseBestActionAlone()
+
+    foodLeft = len(self.getFood(gameState).asList())
+    numCarrying = gameState.getAgentState(self.index).numCarrying
+    myPos = gameState.getAgentPosition(self.index)
+    if numCarrying >= int(self.initialFoodLeft/5):
+      min_dist = 9999
+      for yCoord in range(1,self.yDim):
+        if type(self.dangerMap.getDangerMap()[self.xDim - 1][yCoord]) == int:
+          dist = self.getMazeDistance((self.xDim - 1, yCoord), myPos)
+          if dist < min_dist:
+            min_dist = dist
+            min_coord = (self.xDim - 1, yCoord)
+      actions = gameState.getLegalActions(self.index)
+      actions.remove('Stop')
+      values = [self.getMazeDistance(min_coord, self.getSuccessor(gameState, action).getAgentPosition(self.index)) for action in actions]
+      minValue = min(values)
+      bestActions = [a for a, v in zip(actions, values) if v == minValue]
+      return random.choice(bestActions)
 
     actions = gameState.getLegalActions(self.index)
     actions.remove('Stop')
 
-    # You can profile your evaluation time by uncommenting these lines
-    # start = time.time()
-    values = [self.evaluate(gameState, a) for a in actions]
-    # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
+    values = []
+    for action in actions:
+      value = self.evaluate(gameState, action)
+      successor_pos = self.getSuccessor(gameState, action).getAgentPosition(self.index)
+      if self.getFood(gameState)[successor_pos[0]][successor_pos[1]]:
+        features = self.getFeatures(gameState, action)
+        weights = self.getWeights(gameState, action)
+        value -= features['distanceToFood']*weights['distanceToFood']
+      values.append(value)
 
     maxValue = max(values)
     bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
-    foodLeft = len(self.getFood(gameState).asList())
+    
 
     if foodLeft <= 2:
       bestDist = 9999
@@ -123,6 +184,15 @@ class AttackSafeAgent(CaptureAgent):
       return successor.generateSuccessor(self.index, action)
     else:
       return successor
+  
+  def getSuccessorEnemy(self, gameState, action, enemyIndex):
+    successor = gameState.generateSuccessor(enemyIndex, action)
+    pos = successor.getAgentState(enemyIndex).getPosition()
+    if pos != nearestPoint(pos):
+      # Only half a grid position was covered
+      return successor.generateSuccessor(enemyIndex, action)
+    else:
+      return successor
 
   def evaluate(self, gameState, action):
     """
@@ -133,10 +203,17 @@ class AttackSafeAgent(CaptureAgent):
     weights = self.getWeights(gameState, action)
     state_reward = features * weights
     numCarrying = gameState.getAgentState(self.index).numCarrying
-    if self.red:
-      riskOfCarrying = 0.1 * numCarrying**2 * (gameState.getAgentPosition(self.index)[0] - self.xDim + 2)**2
-    else:
-      riskOfCarrying = 0.1 * numCarrying**2 * (self.xDim + 1 - gameState.getAgentPosition(self.index)[0])**2
+
+    # Computing a penalty to encourage the agent to go back to its own terrain when it is far from it and 
+    # carrying a lot of food (disabled)
+
+    # riskOfCarrying = 0
+    # if self.red:
+    #   riskOfCarrying = 0.1 * numCarrying**2 * (gameState.getAgentPosition(self.index)[0] - self.xDim + 2)**1
+    # else:
+    #   riskOfCarrying = 0.1 * numCarrying**2 * (self.xDim + 1 - gameState.getAgentPosition(self.index)[0])**1
+
+    # Adding a deposit reward to help the agent going back when it carries a lot of food
 
     successor = self.getSuccessor(gameState, action)
     futurePos = successor.getAgentState(self.index).getPosition()
@@ -149,7 +226,7 @@ class AttackSafeAgent(CaptureAgent):
       if myPos[0] == self.xDim - 1 and futurePos[0] == self.xDim:
         deposit_reward += numCarrying*100
 
-    return state_reward - riskOfCarrying + deposit_reward
+    return state_reward + deposit_reward
 
   def getFeatures(self, gameState, action):
     
@@ -168,7 +245,7 @@ class AttackSafeAgent(CaptureAgent):
     
     # Compute danger at agent position
 
-    if (myPos[0] <= self.xDim - 1 and gameState.isOnRedTeam(self.index)) or (myPos[0] >= self.xDim and not gameState.isOnRedTeam(self.index)):
+    if (myPos[0] <= self.xDim - 1 and self.red) or (myPos[0] >= self.xDim and not self.red):
         features['danger'] = 0
     else:
         features['danger'] = self.dangerMap.getDanger(myPos)
@@ -176,6 +253,7 @@ class AttackSafeAgent(CaptureAgent):
     # Compute a metric representing how close is the closest ennemy
 
     distances = gameState.getAgentDistances()
+    AttackSafeAgent.distances = gameState.getAgentDistances()
     min_dist = 100
     scared = False
     for ennemy_index in self.opponentsIndexes:
@@ -183,28 +261,28 @@ class AttackSafeAgent(CaptureAgent):
         if ennemy_pos != None:
             dist = self.getMazeDistance(ennemy_pos,myPos)
         else:
-            dist = distances[ennemy_index]
+            dist = max(6,distances[ennemy_index])
         if dist < min_dist:
             min_dist = dist
-        if gameState.getAgentState(ennemy_index).scaredTimer > 0:
+        if gameState.getAgentState(ennemy_index).scaredTimer > 2:
           scared = True
         
-    if min_dist > 5 or myPos[0] <= self.xDim - 1 or scared:
+    if min_dist > 5 or (myPos[0] < self.xDim and self.red) or (myPos[0] >= self.xDim and not self.red) or scared:
         features['ennemyProximity'] = 0
-    elif min_dist == 5:
-        features['ennemyProximity'] = 10
-    elif min_dist == 4:
-        features['ennemyProximity'] = 30
-    elif min_dist == 3:
+    elif min_dist > 4:
+        features['ennemyProximity'] = 20
+    elif min_dist > 3:
         features['ennemyProximity'] = 50
-    elif min_dist == 2:
-        features['ennemyProximity'] = 1000
-    elif min_dist == 1:
-        features['ennemyProximity'] = 10000
-    elif min_dist == 0:
+    elif min_dist > 2:
+        features['ennemyProximity'] = 100
+    elif min_dist > 1:
+        features['ennemyProximity'] = 200
+    elif min_dist > 0:
+        features['ennemyProximity'] = 5000
+    elif min_dist <= 0:
         features['ennemyProximity'] = 1000000
 
     return features
 
   def getWeights(self, gameState, action):
-    return {'successorScore': 10, 'distanceToFood': -1, 'danger': -3, 'ennemyProximity': -0.5}
+    return {'successorScore': 10, 'distanceToFood': -2, 'danger': -00, 'ennemyProximity': -2}
