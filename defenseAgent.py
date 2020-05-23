@@ -11,6 +11,7 @@ from math import *
 
 from dangerMap import DangerMap
 from attackSafeAgent import AttackSafeAgent
+from miniMax import MiniMax, Node
 
 class DefenseAgent(CaptureAgent):
   """
@@ -63,6 +64,80 @@ class DefenseAgent(CaptureAgent):
     myPos = gameState.getAgentPosition(self.index)
     actions = gameState.getLegalActions(self.index)
     actions.remove('Stop')
+    scared = gameState.getAgentState(self.index).scaredTimer > 0
+
+    # Stay at a certain distance of the enemy if scared to intercept it when the agent isn't scared anymore
+
+    """
+    If an opponent is detected and that we are scared, we computed its shortest escape route and try to stay there at a 2 distance of the opponent
+    """
+    if scared:
+      for ennemy_index in self.opponentsIndexes:
+        ennemy_pos = gameState.getAgentPosition(ennemy_index)
+        if ennemy_pos != None: # Opponent detected, we have to compute its shortest escape route
+          # Time for the minimax
+          minimax_depth = 5
+          minimax = MiniMax(gameState, None, minimax_depth)
+          for layer in range(int((minimax_depth - 1)/2)):
+            number_of_successors = 0
+            for k in range(len(minimax.tree[2*layer])):
+              node = minimax.tree[2*layer][k]
+              actions = node.gameState.getLegalActions(self.index)
+              for action in actions:
+                successor = self.getSuccessor(node.gameState, action)
+                minimax.tree[2*layer + 1].append(Node(successor, 0, k, action, node.depth - 1))
+                minimax.tree[2*layer][k].child.append(number_of_successors)
+                number_of_successors += 1
+            number_of_successors = 0
+            for k in range(len(minimax.tree[2*layer + 1])):
+              node = minimax.tree[2*layer + 1][k]
+              actions = node.gameState.getLegalActions(ennemy_index)
+              for action in actions:
+                successor = self.getSuccessorEnemy(node.gameState, action, ennemy_index)
+                minimax.tree[2*layer + 2].append(Node(successor, 0, k, action, node.depth - 1))
+                minimax.tree[2*layer + 1][k].child.append(number_of_successors)
+                number_of_successors += 1
+          for terminalNode in minimax.tree[len(minimax.tree) - 1]:
+            actions = terminalNode.gameState.getLegalActions(self.index)
+            ennemy_pos = terminalNode.gameState.getAgentPosition(ennemy_index)
+            values = []
+            # Compute objective point for this terminal node
+            if self.red:
+              xToCheck = self.xDim
+            else:
+              xToCheck = self.xDim - 1
+            yToCheck = 0
+            shortestDistance = 9999
+            for y in range(1,self.yDim - 1):
+              dist = self.getMazeDistance(myPos, ennemy_pos)
+              if dist < shortestDistance:
+                shortestDistance = dist
+                yToCheck = y
+            objPos = (xToCheck, yToCheck)
+            posToGo = None
+            for deltaX in range(-2, 3):
+              for deltaY in range(-2, 3):
+                posToCheck = (ennemy_pos[0] + deltaX, ennemy_pos[1] + deltaY)
+                if gameState.data.layout.walls[posToCheck[0]][posToCheck[1]] == False:
+                  if (self.getMazeDistance(posToCheck,objPos) == dist - 3) and (self.getMazeDistance(posToCheck, ennemy_pos) == 3):
+                    posToGo = posToCheck
+                    pass
+            if posToGo == None:
+              for deltaX in range(-2, 3):
+                for deltaY in range(-2, 3):
+                  posToCheck = (ennemy_pos[0] + deltaX, ennemy_pos[1] + deltaY)
+                if gameState.data.layout.walls[posToCheck[0]][posToCheck[1]] == False:
+                  posToGo = posToCheck
+                  pass
+            if posToGo == None:
+              posToGo = ennemy_pos
+            # Find best action and give a value to this state
+            for action in actions:
+              values.append(self.evaluateScared(terminalNode.gameState, action, ennemy_pos, posToGo))
+            terminalNode.value = max(values)
+          # return best action to maximize the reward in 3 turns
+          return minimax.ChooseBestAction()
+
 
     # Detect if food is being eaten and set the counter for the time of the chase
 
@@ -190,6 +265,15 @@ class DefenseAgent(CaptureAgent):
       return successor.generateSuccessor(self.index, action)
     else:
       return successor
+  
+  def getSuccessorEnemy(self, gameState, action, enemyIndex):
+    successor = gameState.generateSuccessor(enemyIndex, action)
+    pos = successor.getAgentState(enemyIndex).getPosition()
+    if pos != nearestPoint(pos):
+      # Only half a grid position was covered
+      return successor.generateSuccessor(enemyIndex, action)
+    else:
+      return successor
 
   def evaluate(self, gameState, action):
     """
@@ -198,6 +282,15 @@ class DefenseAgent(CaptureAgent):
     features = self.getFeatures(gameState, action)
     weights = self.getWeights(gameState, action)
     return features * weights
+
+  def evaluateScared(self, gameState, action, ennemy_pos, posToGo):
+    """
+    Gives the score to a gamestate when the agent is scared
+    """
+    myPos = gameState.getAgentPosition(self.index)
+    distToEnnemy = self.getMazeDistance(myPos, ennemy_pos)
+    distToObj = self.getMazeDistance(myPos, posToGo)
+    return 0.8*distToEnnemy - distToObj
 
   def getFeatures(self, gameState, action):
     features = util.Counter()
