@@ -20,17 +20,16 @@ class DangerMap1:
         self.yDim = yDim
         self.filledColumns = [False for x in range(xDim - 2)]
         # Setting walls to -1, middle to 1 and others to some big number
-        for i in range(int(self.xDim/2)):
+        for i in range(self.xDim):
             for j in range(self.yDim):
                 if self.initialDangerMap[i][j] == True:
                     self.dangerMap[i][j] = -1
-                    self.dangerMap[self.xDim - i - 1][self.yDim - j - 1] = -1
                 elif i == self.xDim/2 - 1:
                     self.dangerMap[i][j] = 1
-                    self.dangerMap[self.xDim - i - 1][self.yDim - j - 1] = 1
+                elif i >= self.xDim/2:
+                    self.dangerMap[i][j] = 0
                 else:
                     self.dangerMap[i][j] = 5000
-                    self.dangerMap[self.xDim - i - 1][self.yDim - j - 1] = 5000
         # Iterate until all cells are filled
         while not all(self.filledColumns):
             for i in range(int(self.xDim/2) - 2, 0, -1):
@@ -51,7 +50,10 @@ class DangerMap1:
     def getDangerMap(self):
         return self.dangerMap
 
+    # coords is tuple of coordinates
+
     def getDanger(self, coords):
+        """Returns danger map. Takes in tuple of ints (coordinates). """
         return self.dangerMap[int(coords[0])][int(coords[1])]
 
     def resetDangerMap(self):
