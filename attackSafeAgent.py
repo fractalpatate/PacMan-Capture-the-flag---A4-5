@@ -267,8 +267,10 @@ class AttackSafeAgent(CaptureAgent):
             min_dist = dist
         if gameState.getAgentState(ennemy_index).scaredTimer > 2:
           scared = True
-        
-    if min_dist > 5 or (myPos[0] < self.xDim and self.red) or (myPos[0] >= self.xDim and not self.red) or scared:
+
+    if min_dist > self.xDim - 6:
+        features['ennemyProximity'] = 1000000   
+    elif min_dist == 5 or (myPos[0] < self.xDim and self.red) or (myPos[0] >= self.xDim and not self.red) or scared:
         features['ennemyProximity'] = 0
     elif min_dist > 4:
         features['ennemyProximity'] = 20
