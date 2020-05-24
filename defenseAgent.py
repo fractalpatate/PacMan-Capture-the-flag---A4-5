@@ -118,17 +118,19 @@ class DefenseAgent(CaptureAgent):
             for deltaX in range(-2, 3):
               for deltaY in range(-2, 3):
                 posToCheck = (ennemy_pos[0] + deltaX, ennemy_pos[1] + deltaY)
-                if gameState.data.layout.walls[posToCheck[0]][posToCheck[1]] == False:
-                  if (self.getMazeDistance(posToCheck,objPos) == dist - 3) and (self.getMazeDistance(posToCheck, ennemy_pos) == 3):
-                    posToGo = posToCheck
-                    pass
+                if posToCheck[0] > 0 and posToCheck[0] < self.xDim and posToCheck[1] > 0 and posToCheck[1] < self.yDim:
+                  if gameState.data.layout.walls[posToCheck[0]][posToCheck[1]] == False:
+                    if (self.getMazeDistance(posToCheck,objPos) == dist - 3) and (self.getMazeDistance(posToCheck, ennemy_pos) == 3):
+                      posToGo = posToCheck
+                      pass
             if posToGo == None:
               for deltaX in range(-2, 3):
                 for deltaY in range(-2, 3):
                   posToCheck = (ennemy_pos[0] + deltaX, ennemy_pos[1] + deltaY)
-                if gameState.data.layout.walls[posToCheck[0]][posToCheck[1]] == False:
-                  posToGo = posToCheck
-                  pass
+                  if posToCheck[0] > 0 and posToCheck[0] < self.xDim and posToCheck[1] > 0 and posToCheck[1] < self.yDim:
+                    if gameState.data.layout.walls[posToCheck[0]][posToCheck[1]] == False:
+                      posToGo = posToCheck
+                      pass
             if posToGo == None:
               posToGo = ennemy_pos
             # Find best action and give a value to this state

@@ -8,7 +8,7 @@ from game import Directions
 import game
 from util import nearestPoint
 
-from dangerMap import DangerMap
+from dangerMap1 import DangerMap1
 from miniMax import MiniMax, Node
 
 class AttackSafeAgent(CaptureAgent):
@@ -44,7 +44,8 @@ class AttackSafeAgent(CaptureAgent):
     CaptureAgent.registerInitialState(self, gameState)
     self.xDim = int(gameState.data.layout.walls.width/2)
     self.yDim = int(gameState.data.layout.walls.height)
-    self.dangerMap = DangerMap(gameState.data.layout.walls, self.getMazeDistance, self.xDim, self.yDim)
+    self.dangerMap = DangerMap1(gameState.data.layout.walls, self.getMazeDistance, self.xDim, self.yDim)
+    print(self.dangerMap.getDangerMap())
     self.opponentsIndexes = self.getOpponents(gameState)
     self.initialFoodLeft = len(self.getFood(gameState).asList())
     self.k = 0
@@ -130,7 +131,7 @@ class AttackSafeAgent(CaptureAgent):
     if numCarrying >= int(self.initialFoodLeft/5):
       min_dist = 9999
       for yCoord in range(1,self.yDim):
-        if type(self.dangerMap.getDangerMap()[self.xDim - 1][yCoord]) == int:
+        if gameState.data.layout.walls[self.xDim - 1][yCoord] == False:
           dist = self.getMazeDistance((self.xDim - 1, yCoord), myPos)
           if dist < min_dist:
             min_dist = dist
@@ -285,4 +286,4 @@ class AttackSafeAgent(CaptureAgent):
     return features
 
   def getWeights(self, gameState, action):
-    return {'successorScore': 10, 'distanceToFood': -2, 'danger': -00, 'ennemyProximity': -2}
+    return {'successorScore': 10, 'distanceToFood': -2, 'danger': -1, 'ennemyProximity': -2}
