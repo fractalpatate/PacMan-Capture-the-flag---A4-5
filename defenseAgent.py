@@ -193,7 +193,7 @@ class DefenseAgent(CaptureAgent):
 
     for agentIndex in self.opponentsIndexes:
       ennemy_pos = gameState.getAgentPosition(agentIndex)
-      if ennemy_pos != None:
+      if ennemy_pos != None and not scared:
         current_dist = self.getMazeDistance(myPos, ennemy_pos)
         for action in actions:
           new_state = self.getSuccessor(gameState, action)
@@ -201,6 +201,23 @@ class DefenseAgent(CaptureAgent):
           if new_dist < current_dist:
             if (self.red and new_state.getAgentPosition(self.index)[0] < self.xDim - 1) or (not self.red and new_state.getAgentPosition(self.index)[0] > self.xDim):
               return action
+      if ennemy_pos != None and scared:
+        if self.red and ennemy_pos[0] < self.xDim:
+          current_dist = self.getMazeDistance(myPos, ennemy_pos)
+          for action in actions:
+            new_state = self.getSuccessor(gameState, action)
+            new_dist = self.getMazeDistance(new_state.getAgentPosition(self.index),ennemy_pos)
+            if new_dist < current_dist:
+              if (self.red and new_state.getAgentPosition(self.index)[0] < self.xDim - 1) or (not self.red and new_state.getAgentPosition(self.index)[0] > self.xDim):
+                return action
+        if not self.red and ennemy_pos[0] >= self.xDim:
+          current_dist = self.getMazeDistance(myPos, ennemy_pos)
+          for action in actions:
+            new_state = self.getSuccessor(gameState, action)
+            new_dist = self.getMazeDistance(new_state.getAgentPosition(self.index),ennemy_pos)
+            if new_dist < current_dist:
+              if (self.red and new_state.getAgentPosition(self.index)[0] < self.xDim - 1) or (not self.red and new_state.getAgentPosition(self.index)[0] > self.xDim):
+                return action
     
     # If the chase is in progress, go to the reminded position
 
