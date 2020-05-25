@@ -14,6 +14,8 @@ from miniMax import MiniMax, Node
 from attackFunctions import *
 from defenseFunctions import *
 
+from agent1 import FlexibleAgent001
+
 class FlexibleAgent002(CaptureAgent):
     """
     A flexible agent capable of switching behaviors between attack and defense
@@ -25,10 +27,13 @@ class FlexibleAgent002(CaptureAgent):
     index = 0
     previousFoodToDefend = [[0]]
     rememberedPosition = (0,0)
+    currentPos = (0,0)
+
+    attack = False
 
     def __init__(self, index, timeForComputing=.1):
         # Agent index for querying state
-        self.attack = False
+        FlexibleAgent002.attack = False
         self.index = index
         FlexibleAgent002.index = index
         # Whether or not you're on the red team
@@ -68,9 +73,14 @@ class FlexibleAgent002(CaptureAgent):
 
         # Update measurements
         FlexibleAgent002.distances = gameState.getAgentDistances()
+        FlexibleAgent002.currentPos = gameState.getAgentPosition(self.index)
+
+        # Update the behavior to adopt
+        self.AdaptBehaviors(self.red, self.xDim)
 
         # Attack behavior
-        if self.attack:
+        if FlexibleAgent002.attack:
+            FlexibleAgent001.previousFoodToDefend = self.getFoodYouAreDefending(gameState)
             # Find the closest enemy and proceed safely if required
             closeEnemyPositions = []
             closeEnemyIndex = []
@@ -106,7 +116,7 @@ class FlexibleAgent002(CaptureAgent):
                                         self.start)
         
         # Defense behavior
-        if not self.attack:
+        if not FlexibleAgent002.attack:
             myPos = gameState.getAgentPosition(self.index)
             actions = gameState.getLegalActions(self.index)
             actions.remove('Stop')
@@ -370,3 +380,44 @@ class FlexibleAgent002(CaptureAgent):
 
     def getWeightsDefense(self, gameState, action):
         return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+    
+    def switchBothBehaviors(self):
+        FlexibleAgent001.attack = not FlexibleAgent001.attack
+        FlexibleAgent002.attack = not FlexibleAgent002.attack
+
+    def ATTACKATTACKATTACKSelf(self, index):
+        if index == 1:
+            FlexibleAgent001.attack = True
+        elif index ==2:
+            FlexibleAgent002.attack = True
+
+    def goDefendPlease(self, index):
+        if index == 1:
+            FlexibleAgent001.attack = False
+        elif index == 2:
+            FlexibleAgent002.attack = False
+
+    def resetBehaviors(self):
+        FlexibleAgent001.attack = True
+        FlexibleAgent002.attack = False
+
+    def AdaptBehaviors(self, red, xDim):
+        """
+        Gives the attacking role to the agent that has the best opportunities to attack
+        """
+        if red:
+            #Check if an agent is far inside its side and the other close to the opponents, and adapt behaviors
+            if FlexibleAgent002.currentPos[0] < xDim/2 and FlexibleAgent001.currentPos[0] >= xDim - 2 and FlexibleAgent001.attack == False and FlexibleAgent002.attack == True:
+                FlexibleAgent001.attack = True
+                FlexibleAgent002.attack = False
+            if FlexibleAgent001.currentPos[0] < xDim/2 and FlexibleAgent002.currentPos[0] >= xDim - 2 and FlexibleAgent002.attack == False and FlexibleAgent001.attack == True:
+                FlexibleAgent002.attack = True
+                FlexibleAgent001.attack = False
+        else:
+            #Check if an agent is far inside its side and the other close to the opponents, and adapt behaviors
+            if FlexibleAgent002.currentPos[0] > 3*xDim/2 and FlexibleAgent001.currentPos[0] <= xDim + 1 and FlexibleAgent001.attack == False and FlexibleAgent002.attack == True:
+                FlexibleAgent001.attack = True
+                FlexibleAgent002.attack = False
+            if FlexibleAgent001.currentPos[0] > 3*xDim/2 and FlexibleAgent002.currentPos[0] <= xDim + 1 and FlexibleAgent002.attack == False and FlexibleAgent001.attack == True:
+                FlexibleAgent002.attack = True
+                FlexibleAgent001.attack = False

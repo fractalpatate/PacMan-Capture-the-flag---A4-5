@@ -25,10 +25,13 @@ class FlexibleAgent001(CaptureAgent):
     index = 0
     previousFoodToDefend = [[0]]
     rememberedPosition = (0,0)
+    currentPos = (0,0)
+
+    attack = True
 
     def __init__(self, index, timeForComputing=.1):
         # Agent index for querying state
-        self.attack = True
+        FlexibleAgent001.attack = True
         self.index = index
         FlexibleAgent001.index = index
         # Whether or not you're on the red team
@@ -68,9 +71,11 @@ class FlexibleAgent001(CaptureAgent):
 
         # Update measurements
         FlexibleAgent001.distances = gameState.getAgentDistances()
+        FlexibleAgent001.currentPos = gameState.getAgentPosition(self.index)
 
         # Attack behavior
-        if self.attack:
+        if FlexibleAgent001.attack:
+            FlexibleAgent001.previousFoodToDefend = self.getFoodYouAreDefending(gameState)
             # Find the closest enemy and proceed safely if required
             closeEnemyPositions = []
             closeEnemyIndex = []
@@ -106,7 +111,7 @@ class FlexibleAgent001(CaptureAgent):
                                         self.start)
         
         # Defense behavior
-        if not self.attack:
+        if not FlexibleAgent001.attack:
             myPos = gameState.getAgentPosition(self.index)
             actions = gameState.getLegalActions(self.index)
             actions.remove('Stop')
