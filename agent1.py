@@ -330,7 +330,7 @@ class FlexibleAgent001(CaptureAgent):
         return features
 
     def getWeightsAttack(self, gameState, action):
-        return {'successorScore': 10, 'distanceToFood': -2, 'danger': -1, 'ennemyProximity': -2}
+        return {'successorScore': 10, 'distanceToFood': -3, 'danger': -1, 'ennemyProximity': -2}
     
     def evaluateDefense(self, gameState, action):
         """
