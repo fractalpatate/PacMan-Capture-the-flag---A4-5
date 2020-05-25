@@ -110,4 +110,4 @@ def NOTONMYWATCH(gameState, diff, myPos, actions, getMazeDistance, getSuccessor,
             if new_dist < current_dist:
                 if (red and new_state.getAgentPosition(index)[0] < xDim - 1) or (not red and new_state.getAgentPosition(index)[0] > xDim):
                     return action, ennemy_pos
-    return None
+    return (None, None)
