@@ -327,10 +327,32 @@ class FlexibleAgent001(CaptureAgent):
         elif min_dist <= 0:
             features['ennemyProximity'] = 1000000
 
+        capsules = self.getCapsules(gameState)
+        min_dist = 9999
+        for capsule in capsules:
+            dist = self.getMazeDistance(capsule, myPos)
+            if dist < min_dist:
+                min_dist = dist
+        if min_dist > 3:
+            features['capsuleProximity'] = 0
+        elif min_dist > 2:
+            features['capsuleProximity'] = 150
+        elif min_dist > 1:
+            features['capsuleProximity'] = 300
+        elif min_dist > 0:
+            features['capsuleProximity'] = 6000
+        elif min_dist <= 0:
+            features['capsuleProximity'] = 1000000
+
+        enemies = [successor.getAgentState(i)
+                for i in self.getOpponents(successor)]
+        invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+        features['numInvaders'] = len(invaders)
+
         return features
 
     def getWeightsAttack(self, gameState, action):
-        return {'successorScore': 10, 'distanceToFood': -3, 'danger': -0.0, 'ennemyProximity': -2}
+        return {'successorScore': 10, 'distanceToFood': -3, 'danger': -0.0, 'ennemyProximity': -2, 'capsuleProximity': 2, 'numInvaders': -100}
     
     def evaluateDefense(self, gameState, action):
         """
@@ -375,4 +397,4 @@ class FlexibleAgent001(CaptureAgent):
         return features
 
     def getWeightsDefense(self, gameState, action):
-        return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+        return {'numInvaders': -2000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}

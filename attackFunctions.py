@@ -96,6 +96,7 @@ def CollectFoodForTheWin(gameState, index, evaluate, getSuccessor, getFood, getF
             features = getFeatures(gameState, action)
             weights = getWeights(gameState, action)
             value -= features['distanceToFood']*weights['distanceToFood']
+        
         values.append(value)
     maxValue = max(values)
     bestActions = [a for a, v in zip(actions, values) if v == maxValue]
